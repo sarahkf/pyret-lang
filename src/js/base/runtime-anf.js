@@ -2955,6 +2955,7 @@ function isMethod(obj) { return obj instanceof PMethod; }
       if (threadIsCurrentlyPaused) { throw new Error("iter entered during stopped execution"); }
       var loop = true;
       while (loop) {
+        var beforePause = window.performance.now();
         loop = false;
         try {
           if (manualPause !== null) {
@@ -2999,8 +3000,16 @@ function isMethod(obj) { return obj instanceof PMethod; }
           if(thisRuntime.isCont(e)) {
             // console.log("BOUNCING");
             BOUNCES++;
+            var afterPause = window.performance.now() - beforePause;
+            console.log("Run took ", afterPause, " millis with ", runGas, " calls");
+            if(afterPause <= 500) {
+              runGas = runGas * 2;
+            }
+            else if(afterPause > 1000) {
+              runGas = runGas / 2;
+            }
             thisRuntime.GAS = initialGas;
-            thisRuntime.RUNGAS = initialGas * 10;
+            thisRuntime.RUNGAS = runGas;
             for(var i = e.stack.length - 1; i >= 0; i--) {
 //              console.error(e.stack[i].vars.length + " width;" + e.stack[i].vars + "; from " + e.stack[i].from + "; frame " + theOneTrueStackHeight);
               theOneTrueStack[theOneTrueStackHeight++] = e.stack[i];
@@ -3049,7 +3058,8 @@ function isMethod(obj) { return obj instanceof PMethod; }
       return;
     }
     thisRuntime.GAS = initialGas;
-    thisRuntime.RUNGAS = initialGas * 10;
+    var runGas = initialGas * 10;
+    thisRuntime.RUNGAS = runGas;
     iter();
   }
 
