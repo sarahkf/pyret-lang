@@ -88,7 +88,7 @@ check-op-postfix: RAISESNOT
 
 expr: paren-expr | id-expr | prim-expr
     | lambda-expr | method-expr | app-expr
-    | obj-expr
+    | obj-expr | tuple-expr
     | dot-expr
     | template-expr
 #    | bracket-expr NOTE(joe): commented out until it has semantics
@@ -132,6 +132,11 @@ opt-comma-binops: [binop-expr (COMMA binop-expr)*]
 
 # at least one annotation must be provided
 inst-expr: expr LANGLE ann (COMMA ann)* RANGLE
+
+tuple-expr: LBRACE tuple-fields RBRACE
+tuple-fields: list-tuple-field* tuple-field [SEMI]
+list-tuple-field: tuple-field SEMI
+tuple-field: binop-expr
 
 obj-expr: LBRACE obj-fields RBRACE | LBRACE RBRACE
 obj-fields: obj-field (COMMA obj-field)* [COMMA]
