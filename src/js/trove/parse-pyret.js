@@ -419,6 +419,7 @@
         'binop-expr': function(node) {
           if (node.kids.length === 1) {
             // (binop-expr e)
+          },
             return tr(node.kids[0]);
           } else {
             var mkOp = RUNTIME.getField(ast, 's-op').app;
