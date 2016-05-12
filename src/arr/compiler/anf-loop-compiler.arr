@@ -1147,6 +1147,18 @@ compiler-visitor = {
     visit-v = value.visit(self)
     c-field(j-field(name, visit-v.exp), visit-v.other-stmts)
   end,
+  a-tuple(self, l, values):
+    visit-vals = values.map(_.visit(self)) 
+    jfields = for CL.map_list_n(n from 1, v from visit-vals): 
+        j-field("v" + num-to-string(n), get-exp(v))
+    end
+    c-exp(rt-method("makeObject", [clist: j-obj(jfields)]), cl-empty)
+  end,
+  a-array(self, l, values):
+    visit-vals = values.map(_.visit(self))
+    other-stmts = visit-vals.foldr(lam(v, acc): v.other-stmts + acc end, cl-empty)
+    c-exp(j-list(false, CL.map_list(get-exp, visit-vals)), other-stmts)
+  end,
   a-srcloc(self, l, loc):
     c-exp(self.get-loc(loc), cl-empty)
   end,
