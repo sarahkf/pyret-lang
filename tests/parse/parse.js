@@ -644,6 +644,14 @@ R(["../../../" + build + "/js/pyret-tokenizer", "../../../" + build + "/js/pyret
       expect(parse("{word; hello; there; pyret")).toBe(false);
       expect(parse("234; hi; bad}")).toBe(false);
     });
+
+    it("should parse tuple-get", function() {
+      expect(parse("tup{2}")).not.toBe(false);
+     expect(parse("one{3 + 4}")).toBe(false);
+       expect(parse("two{4")).toBe(false);
+     //expect(parse("two{two}")).toBe(false);
+      expect(parse("hello5}")).toBe(false);
+    });
   });
 
   
