@@ -593,15 +593,6 @@
           return RUNTIME.getField(ast, 's-tuple-get')
               .app(pos(node.pos), tr(node.kids[0]), tr(node.kids[2]))
         },
-        'tuple-expr': function(node) {
-          return RUNTIME.getField(ast, 's-tuple')
-              .app(pos(node.pos), tr(node.kids[1]))
-        },
-        //changes here
-        'tuple-get': function(node) {
-          return RUNTIME.getField(ast, 's-tuple-get')
-              .app(pos(node.pos), tr(node.kids[1]), tr(node.kids[2]))
-        },
         'obj-field': function(node) {
           if (node.kids.length === 4) {
             // (obj-field MUTABLE key COLON value)
