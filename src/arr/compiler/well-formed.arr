@@ -545,6 +545,14 @@ well-formed-visitor = A.default-iter-visitor.{
     check-underscore-name(fields, "a field name")
     lists.all(_.visit(self), fields)
   end,
+  s-tuple-get(self, l, tup, index):
+    if (index < 0) block: 
+      wf-error("Index too small ", l)
+      false
+     else:
+      true
+     end
+  end,
   s-check(self, l, name, body, keyword-check) block:
     last-visited-loc := l
     if not(keyword-check) block:
