@@ -416,10 +416,35 @@
               .app(pos(node.pos), tr(kids[1]), RUNTIME.ffi.makeSome(tr(kids[4])), tr(kids[0]), RUNTIME.ffi.makeSome(tr(kids[6])));
           }
         },
+        'tuple-name-list' : function(node) {
+          if (node.kids[node.kids.length - 1].name !== "binding") {
+            // (obj-fields (list-tuple-field f1 SEMI) ... lastField SEMI)
+            return makeList(node.kids.slice(0, -1).map(tr));
+          } else {
+            // (fields (list-tuple-field f1 SEMI) ... lastField)
+            return makeList(node.kids.map(tr));
+          }
+        },
+        'tuple-fields' : function(node) {
+          if (node.kids[node.kids.length - 1].name !== "binop-expr") {
+            // (obj-fields (list-tuple-field f1 SEMI) ... lastField SEMI)
+            return makeList(node.kids.slice(0, -1).map(tr));
+          } else {
+            // (fields (list-tuple-field f1 SEMI) ... lastField)
+            return makeList(node.kids.map(tr));
+          }
+        },
+        'tuple-name': function(node) {
+          // (list-tuple-field f semo)
+          return tr(node.kids[0]);
+        }, 
+        'list-tuple-field': function(node) {
+          // (list-tuple-field f semo)
+          return tr(node.kids[0]);
+        }, 
         'binop-expr': function(node) {
           if (node.kids.length === 1) {
             // (binop-expr e)
-          },
             return tr(node.kids[0]);
           } else {
             var mkOp = RUNTIME.getField(ast, 's-op').app;
