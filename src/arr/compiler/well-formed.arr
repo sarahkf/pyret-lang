@@ -549,7 +549,10 @@ well-formed-visitor = A.default-iter-visitor.{
     if (index < 0) block: 
       wf-error("Index too small ", l)
       false
-     else:
+    else if (index > 1000):
+      wf-error(" Index over maximum allowed index  ", l)
+      false
+    else:
       true
      end
   end,
