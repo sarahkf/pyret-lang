@@ -184,6 +184,16 @@ fun desugar-scope-block(stmts :: List<A.Expr>, binding-group :: BindingGroup) ->
               A.s-bind(l, false, A.s-name(l, name), A.a-blank),
               A.s-lam(l, params, args, ann, doc, body, _check, blocky)
             ), rest-stmts)
+        | s-tuple-let(l, binds, tup) =>
+         # note: reversed binds
+          cases(List) binds:
+            | empty => desugar-scope-block(rest-stmts, binding-group)
+            | link(first, rest) =>
+              new-rst-stmts = link(A.s-tuple-let(l, rest, tup), rest-stmts)
+              new-let-exp =  A.s-tuple-get(l, tup, (binds.length() - 1))
+              new-block-list = [list: add-let-bind(binding-group, A.s-let-bind(l, first, new-let-exp), new-rst-stmts)]
+              A.s-block(l, new-block-list)
+          end
         | s-data-expr(l, name, namet, params, mixins, variants, shared, _check) =>
           fun b(loc, id :: String): A.s-bind(loc, false, A.s-name(loc, id), A.a-blank) end
           fun bn(loc, n :: A.Name): A.s-bind(loc, false, n, A.a-blank) end
