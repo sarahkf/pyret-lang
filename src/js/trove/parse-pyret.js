@@ -756,6 +756,11 @@
           // (prim-expr e)
           return tr(node.kids[0]);
         },
+        'tuple-ann': function(node) {
+          // (record-ann LBRACE fields ... RBRACE)
+          return RUNTIME.getField(ast, 'a-tuple')
+            .app(pos(node.pos), makeList(node.kids.slice(1, -1).map(tr)));
+        },
         'obj-expr': function(node) {
           if (node.kids.length === 2) {
             // (obj-expr LBRACE RBRACE)
