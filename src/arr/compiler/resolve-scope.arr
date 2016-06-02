@@ -774,12 +774,12 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
       env-and-binds = for fold(acc from { env: self.env, fbs: [list: ] }, fb from binds):
         cases(A.ForBind) fb block:
           | s-for-bind(l2, bind, val) => 
-            atom-env = make-atom-for(bind.id, bind.shadows, acc.env, bindings, let-bind(_, _, bind.ann, none))
-            new-bind = A.s-bind(bind.l, bind.shadows, atom-env.atom, bind.ann.visit(self.{env: acc.env}))
+            atom-env = make-atom-for(bind.id, bind.shadows, env, bindings, let-bind(_, _, bind.ann, none))
+            new-bind = A.s-bind(bind.l, bind.shadows, atom-env.atom, bind.ann.visit(self.{env: env}))
             visit-val = val.visit(self)
             update-binding-expr(atom-env.atom, some(visit-val))
             new-fb = A.s-for-bind(l2, new-bind, visit-val)
-            { env: atom-env.env, fbs: link(new-fb, acc.fbs) }
+            { atom-env.env; link(new-fb, fbs) }
         end
       end
       A.s-for(l, iter.visit(self), env-and-binds.fbs.reverse(), ann.visit(self), body.visit(self.{env: env-and-binds.env}), blocky)
