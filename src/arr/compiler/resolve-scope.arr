@@ -809,8 +809,8 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
         atom-env = make-atom-for(param, false, acc.env, type-bindings, type-var-bind(_, _, none))
         { env: atom-env.env, atoms: link(atom-env.atom, acc.atoms) }
       end
-      with-params = self.{type-env: new-types.env}
-      result = A.s-data-expr(l, name, namet, new-types.atoms.reverse(),
+      with-params = self.{type-env: env}
+      result = A.s-data-expr(l, name, namet, atoms.reverse(),
         mixins.map(_.visit(with-params)), variants.map(_.visit(with-params)),
         shared-members.map(_.visit(with-params)), with-params.option(_check))
       datatypes.set-now(namet.key(), result)
