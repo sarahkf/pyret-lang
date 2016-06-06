@@ -191,7 +191,7 @@ arrow-ann: (PARENSPACE|PARENNOSPACE) [comma-anns] THINARROW ann RPAREN
 
 app-ann: (name-ann|dot-ann) LANGLE comma-anns RANGLE
 
-tuple-ann: LBRACE [ann-list-tuple-field* tuple-field] RBRACE
+tuple-ann: LBRACE ann-list-tuple-field* tuple-field RBRACE
 ann-list-tuple-field: tuple-field SEMI
 tuple-field: ann 
 
