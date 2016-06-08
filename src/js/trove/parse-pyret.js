@@ -757,9 +757,13 @@
           return tr(node.kids[0]);
         },
         'tuple-ann': function(node) {
-          // (record-ann LBRACE fields ... RBRACE)
+         if (node.kids[node.kids.length - 1].name !== "tuple-field") {
+            return RUNTIME.getField(ast, 'a-tuple')
+            .app(pos(node.pos), makeList(node.kids.slice(1, -2).map(tr)));
+          } else {
           return RUNTIME.getField(ast, 'a-tuple')
             .app(pos(node.pos), makeList(node.kids.slice(1, -1).map(tr)));
+          }
         },
         'obj-expr': function(node) {
           if (node.kids.length === 2) {
