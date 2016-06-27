@@ -973,20 +973,20 @@ function isMethod(obj) { return obj instanceof PMethod; }
 
     function getTuple(tup, index, l) {
       if(!isTuple(tup)) {
-        ffi.throwLookupNonTuple(makeSrcloc(l), tup, index);
+        thisRuntime.ffi.throwLookupNonTuple(makeSrcloc(l), tup, index);
       }
       if (index >= tup.vals.length) {
-        ffi.throwLookupLargeIndex(makeSrcloc(l), tup, index);
+        thisRuntime.ffi.throwLookupLargeIndex(makeSrcloc(l), tup, index);
       }
       return tup.vals[index]
     }
 
     function checkTupleBind(tup, length, l) {
       if (!isTuple(tup)) {
-        ffi.throwBadTupleBind(makeSrcloc(l), tup, length, length);
+        thisRuntime.ffi.throwBadTupleBind(makeSrcloc(l), tup, length, length);
       }
       if (tup.vals.length !== length) {
-        ffi.throwBadTupleBind(makeSrcloc(l), tup, tup.vals.length, length);
+        thisRuntime.ffi.throwBadTupleBind(makeSrcloc(l), tup, tup.vals.length, length);
       }
       return true;
     }
@@ -2699,7 +2699,7 @@ function isMethod(obj) { return obj instanceof PMethod; }
       if(!isTuple(val)) {
         return ffi.contractFail(
             makeSrcloc(compilerLoc),
-            ffi.makeTypeMismatch(val, "Tuple")
+            thisRuntime.ffi.makeTypeMismatch(val, "Tuple")
           );
       }
       if(that.anns.length != val.vals.length) {
@@ -2714,22 +2714,22 @@ function isMethod(obj) { return obj instanceof PMethod; }
           thisAnn = thisChecker;
           return thisChecker.check(that.locs[that.locs.length - remainingAnns.length], val.vals[remainingAnns.length]);
         }, function(result) {
-          if(ffi.isOk(result)) {
-            if(remainingAnns.length === 0) { return ffi.contractOk; }
+          if(thisRuntime.ffi.isOk(result)) {
+            if(remainingAnns.length === 0) { return thisRuntime.ffi.contractOk; }
             else { return deepCheckFields(remainingAnns); }
           }
-          else if(ffi.isFail(result)) {
+          else if(thisRuntime.ffi.isFail(result)) {
             return that.createTupleFailureError(compilerLoc, val, thisAnn, result);
             //return ffi.throwMessageException("types are wrong");
           }
         },
         "deepCheckFields");
       }
-      if(that.anns.length === 0) { return ffi.contractOk; }
+      if(that.anns.length === 0) { return thisRuntime.ffi.contractOk; }
       else { return deepCheckFields(that.anns.slice()); }
     }
     PTupleAnn.prototype.createTupleLengthMismatch = function(compilerLoc, val, annLength, tupLength) {
-      return ffi.contractFail(compilerLoc, ffi.makeTupleLengthMismatch(compilerLoc, val, annLength, tupLength));
+      return thisRuntime.ffi.contractFail(compilerLoc, thisRuntime.ffi.makeTupleLengthMismatch(compilerLoc, val, annLength, tupLength));
     };
     PTupleAnn.prototype.createTupleFailureError = function(compilerLoc, val, ann, result) {
       var that = this;
@@ -2737,10 +2737,10 @@ function isMethod(obj) { return obj instanceof PMethod; }
       for(var i = 0; i < that.anns.length; i++) {
         if(that.anns[i] === ann) { loc = that.locs[i]; }
       }
-      return ffi.contractFail(
+      return thisRuntime.ffi.contractFail(
         makeSrcloc(compilerLoc),
-        ffi.makeTupleAnnsFail(val, ffi.makeList([
-            ffi.makeAnnFailure(
+        thisRuntime.ffi.makeTupleAnnsFail(val, thisRuntime.ffi.makeList([
+            thisRuntime.ffi.makeAnnFailure(
               makeSrcloc(loc),
               ann,
               getField(result, "reason")
