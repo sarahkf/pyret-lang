@@ -525,7 +525,7 @@ fun _checking(e :: Expr, expect-type :: Type, top-level :: Boolean, context :: C
                    typing-result(A.s-tuple(l, exprs), expect-type, context)  
                   end)
               end
-            | else => 
+            | else =>
               typing-error([list: C.incorrect-type(tostring(expect-type), expect-type.l, "a tuple type", l)])
             end
         | s-array(l, values) =>
@@ -767,7 +767,8 @@ fun _synthesis(e :: Expr, top-level :: Boolean, context :: Context) -> TypingRes
       result.typing-bind(lam(typs :: List<Type>, shadow context):
         typing-result(A.s-tuple(l, elts), t-tuple(typs, l), context)
         end)
-
+   | s-tuple-get(l, tup, index) =>
+      raise("synthesis for s-tuple-let not yet implemented") 
      #|
       result = fold2-strict(lam(acc, arg, arg-type):
         acc.bind(lam(exprs, shadow context):
