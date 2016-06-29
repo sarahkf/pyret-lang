@@ -2697,7 +2697,7 @@ function isMethod(obj) { return obj instanceof PMethod; }
     PTupleAnn.prototype.check = function(compilerLoc, val) {
       var that = this;
       if(!isTuple(val)) {
-        return ffi.contractFail(
+        return thisRuntime.ffi.contractFail(
             makeSrcloc(compilerLoc),
             thisRuntime.ffi.makeTypeMismatch(val, "Tuple")
           );
