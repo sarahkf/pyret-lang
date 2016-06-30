@@ -1854,7 +1854,7 @@ function isMethod(obj) { return obj instanceof PMethod; }
                 }
               } else if(isTuple(curLeft) && isTuple(curRight)) {
                  if (curLeft.vals.length !== curRight.vals.length) {
-                  toCompare.curAns = ffi.notEqual.app(current.path, curLeft, curRight);
+                  toCompare.curAns = thisRuntime.ffi.notEqual.app(current.path, curLeft, curRight);
                  } else {
                   for (var i = 0; i < curLeft.vals.length; i++) {
                     toCompare.stack.push({
