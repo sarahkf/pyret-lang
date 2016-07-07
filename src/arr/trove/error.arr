@@ -298,9 +298,12 @@ data RuntimeError:
           ED.text(" accessed on the tuple")],
         ED.embed(self.tup)]
     end
-  | bad-tuple-bind(loc, tup, length, desiredLength) with:
+  | bad-tuple-bind(loc, tup, length :: Number, desiredLength :: Number) with:
     method render-fancy-reason(self, loc-to-ast, loc-to-src):
-      ast-dot = loc-to-ast(self.loc).block.stmts.first
+     [ED.error:
+       [ED.para:
+         ED.text("bad-tuple-bind")]]
+    #|  ast-dot = loc-to-ast(self.loc).block.stmts.first
       tup-loc = ast-dot.tup.l
       tup-txt = loc-to-src(tup-loc) 
       tup-col = 0
@@ -326,10 +329,10 @@ data RuntimeError:
             ED.embed(self.length),
             ED.text(" but the number of bindings was "),
             ED.embed(self.desiredLength)]]
-      end 
+      end |#
     end,
     method render-reason(self):
-      if (self.length == self.desiredLength):
+    if (self.length == self.desiredLength):
         [ED.error:
           [ED.para:
             ED.text("The tuple binding expression at "),
@@ -352,7 +355,7 @@ data RuntimeError:
             ED.embed(self.desiredLength),
             ED.text(" accessed on the tuple")],
           ED.embed(self.tup)]
-      end
+      end 
     end
   | lookup-non-object(loc, non-obj, field :: String) with:
     method render-fancy-reason(self, loc-to-ast, loc-to-src):
