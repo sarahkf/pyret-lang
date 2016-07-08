@@ -300,11 +300,12 @@ data RuntimeError:
     end
   | bad-tuple-bind(loc, tup, length :: Number, desiredLength :: Number) with:
     method render-fancy-reason(self, loc-to-ast, loc-to-src):
-     [ED.error:
+    #| [ED.error:
        [ED.para:
-         ED.text("bad-tuple-bind")]]
-    #|  ast-dot = loc-to-ast(self.loc).block.stmts.first
-      tup-loc = ast-dot.tup.l
+         ED.text("bad-tuple-bind")]] |#
+      ast-dot = loc-to-ast(self.loc).block.stmts.first
+      tup-loc = self.loc
+      #tup-loc = ast-dot.tup.l
       tup-txt = loc-to-src(tup-loc) 
       tup-col = 0
       if (self.length == self.desiredLength):
@@ -329,7 +330,7 @@ data RuntimeError:
             ED.embed(self.length),
             ED.text(" but the number of bindings was "),
             ED.embed(self.desiredLength)]]
-      end |#
+      end 
     end,
     method render-reason(self):
     if (self.length == self.desiredLength):
