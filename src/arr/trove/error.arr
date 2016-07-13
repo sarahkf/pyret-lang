@@ -311,7 +311,7 @@ data RuntimeError:
       if (self.length == self.desiredLength):
         [ED.error:
           [ED.para:
-            ED.text("The tuple binding expression ")],
+            ED.text("The tuple binding ")],
           ED.cmcode(self.loc) ,
           [ED.para:
             ED.text(" expects the right side of the binding to be a "),
@@ -319,7 +319,7 @@ data RuntimeError:
       else:
         [ED.error:
           [ED.para:
-            ED.text("The tuple binding expression ")],
+            ED.text("The tuple binding ")],
           ED.cmcode(self.loc) ,
           [ED.para:
             ED.text(" expects the number of bindings"),
@@ -336,7 +336,7 @@ data RuntimeError:
     if (self.length == self.desiredLength):
         [ED.error:
           [ED.para:
-            ED.text("The tuple binding expression at "),
+            ED.text("The tuple binding at "),
             ED.loc(self.loc),
             ED.text(" expects the right hand side to evaluate to an tuple.")],
           [ED.para:
@@ -346,7 +346,7 @@ data RuntimeError:
       else:
         [ED.error:
           [ED.para:
-            ED.text("The tuple binding expression at "),
+            ED.text("The tuple binding at "),
             ED.loc(self.loc),
             ED.text(" expects the number of bindings to be equivalent to the length of the tuple")],
           [ED.para:
