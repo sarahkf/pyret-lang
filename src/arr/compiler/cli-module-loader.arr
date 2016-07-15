@@ -1,5 +1,4 @@
 provide *
-import namespace-lib as N
 import runtime-lib as R
 import builtin-modules as B
 import make-standalone as MS
@@ -115,9 +114,6 @@ fun get-cached-if-available(basedir, loc) block:
       end,
       method get-globals(_):
         CS.standard-globals
-      end,
-      method get-namespace(_, some-runtime):
-        N.make-base-namespace(some-runtime)
       end,
 
       method uri(_): uri end,
@@ -387,14 +383,23 @@ fun build-program(path, options) block:
 end
 
 fun build-runnable-standalone(path, require-config-path, outfile, options) block:
-  program = build-program(path, options)
-  config = JSON.read-json(F.file-to-string(require-config-path)).dict.unfreeze()
-  config.set-now("out", JSON.j-str(outfile))
-  when not(config.has-key-now("baseUrl")):
-    config.set-now("baseUrl", JSON.j-str(options.compiled-cache))
-  end
+  maybe-program = build-program(path, options)
+  cases(Either) maybe-program block:
+    | left(problems) => 
+      for lists.each(e from problems) block:
+        print-error(RED.display-to-string(e.render-reason(), torepr, empty))
+        print-error("\n")
+      end
+      raise("There were compilation errors")
+    | right(program) =>
+      config = JSON.read-json(F.file-to-string(require-config-path)).dict.unfreeze()
+      config.set-now("out", JSON.j-str(outfile))
+      when not(config.has-key-now("baseUrl")):
+        config.set-now("baseUrl", JSON.j-str(options.compiled-cache))
+      end
 
-  MS.make-standalone(program.natives, program.js-ast, JSON.j-obj(config.freeze()).serialize(), options.standalone-file)
+      MS.make-standalone(program.natives, program.js-ast, JSON.j-obj(config.freeze()).serialize(), options.standalone-file)
+  end
 end
 
 fun build-require-standalone(path, options):

@@ -343,8 +343,7 @@ fun ensure-distinct-lines(loc :: Loc, prev-is-template :: Boolean, stmts :: List
             | srcloc(_, start-line2, _, _, _, _, _) =>
               when (end-line1 == start-line2):
                 if A.is-s-template(first) and prev-is-template:
-                  wf-error2("Found two adjacent template expressions on the same line: "
-                      + "either remove one or separate them", loc, first.l)
+                  add-error(C.template-same-line(loc, first.l))
                 else if not(A.is-s-template(first)) and not(prev-is-template):
                   add-error(C.same-line(loc, first.l))
                 else:
@@ -371,12 +370,12 @@ end
 
 fun wf-last-stmt(stmt :: A.Expr):
   cases(A.Expr) stmt:
-    | s-let(l, _, _, _) => wf-error("Cannot end a block in a let-binding", l)
-    | s-var(l, _, _) => wf-error("Cannot end a block in a var-binding", l)
-    | s-rec(l, _, _) => wf-error("Cannot end a block in a rec-binding", l)
-    | s-fun(l, _, _, _, _, _, _, _, _) => wf-error("Cannot end a block in a fun-binding", l)
-    | s-data(l, _, _, _, _, _, _) => wf-error("Cannot end a block with a data definition", l)
-    | s-contract(l, _, _) => add-error(C.block-ending(l, "contract"))
+    | s-let(l, _, _, _)                => add-error(C.block-ending(l, "let-binding"))
+    | s-var(l, _, _)                   => add-error(C.block-ending(l, "var-binding"))
+    | s-rec(l, _, _)                   => add-error(C.block-ending(l, "rec-binding"))
+    | s-fun(l, _, _, _, _, _, _, _, _) => add-error(C.block-ending(l, "fun-binding"))
+    | s-data(l, _, _, _, _, _, _)      => add-error(C.block-ending(l, "data definition"))
+    | s-contract(l, _, _)              => add-error(C.block-ending(l, "contract"))
     | else => nothing
   end
 end
@@ -413,7 +412,7 @@ fun wf-examples-body(visitor, body):
   for lists.all(b from body.stmts):
     if not(A.is-s-check-test(b)) block:
       add-error(C.non-example(b))
-      false
+      true
     else:
       true
     end
@@ -435,14 +434,14 @@ well-formed-visitor = A.default-iter-visitor.{
     last-visited-loc := l
     if kind == "my-gdrive":
       if args.length() <> 1 block:
-        wf-error("Imports with my-gdrive should have one argument, the name of the file", l)
+        add-error(C.import-arity-mismatch(l, kind, args, 2, [list: "the name of the file"]))
         false
       else:
         true
       end
     else if kind == "shared-gdrive":
       if args.length() <> 2 block:
-        wf-error("Imports with shared-gdrive should have two arguments, the name of the file and the file's id, which you can get from the share URL", l)
+        add-error(C.import-arity-mismatch(l, kind, args, 2, [list: "the name of the file", "the file's id, which you can get from the share URL"]))
         false
       else:
         true
@@ -451,13 +450,9 @@ well-formed-visitor = A.default-iter-visitor.{
       true
     else if kind == "gdrive-js":
       if args.length() <> 2:
-        wf-error("Imports with gdrive-js should have two arguments, the name of the file and the file's id", l)
+        add-error(C.import-arity-mismatch(l, kind, args, 2, [list: "the name of the file", "the file's id"]))
       else:
         true
-      end
-    else if kind == "gdrive-js":
-      when args.length() <> 2:
-        wf-error("Imports with gdrive-js should have two arguments, the name of the file and the file's id", l)
       end
     else:
       true
@@ -584,22 +579,14 @@ well-formed-visitor = A.default-iter-visitor.{
   method s-check-test(self, l, op, refinement, left, right) block:
     last-visited-loc := l
     when not(in-check-block):
-      op-name = op.tosource().pretty(80).join-str("\n")
-      wf-error("Cannot use `" + op-name + "` outside of a `check` or `where` block", l)
+      add-error(C.unwelcome-test(l))
     end
     when is-some(refinement):
       cases(A.CheckOp) op:
         | s-op-is(_)            => nothing
         | s-op-is-not(_)        => nothing
-        | s-op-satisfies(_)     =>
-          wf-error("Cannot use refinement syntax `%(...)` with `satisfies`. "
-              + "Consider changing the predicate instead.", l)
-        | s-op-satisfies-not(_) =>
-          wf-error("Cannot use refinement syntax `%(...)` with `violates`. "
-              + "Consider changing the predicate instead.", l)
-        | else               =>
-          op-name = op.tosource().pretty(80).join-str("\n")
-          wf-error("Cannot use refinement syntax `%(...)` with `" + op-name + "`.", l)
+        | else                  =>
+          add-error(C.unwelcome-test-refinement(refinement.value, op))
       end
     end
     left.visit(self) and self.option(right)
@@ -636,10 +623,10 @@ well-formed-visitor = A.default-iter-visitor.{
     end
     ann.visit(self) and value.visit(self)
   end,
-  method s-method(self, l, params, args, ann, doc, body, _check, blocky) block:
+  method s-method(self, l, name, params, args, ann, doc, body, _check, blocky) block:
     last-visited-loc := l
     when args.length() == 0:
-      add-error(C.no-arguments(A.s-method(l, params, args, ann, doc, body, _check, blocky)))
+      add-error(C.no-arguments(A.s-method(l, name, params, args, ann, doc, body, _check, blocky)))
     end
     ensure-unique-ids(args)
     cases(Option) _check:
@@ -651,7 +638,7 @@ well-formed-visitor = A.default-iter-visitor.{
     end
     lists.all(_.visit(self), args) and ann.visit(self) and body.visit(self) and wrap-visit-check(self, _check)
   end,
-  method s-lam(self, l, params, args, ann, doc, body, _check, blocky) block:
+  method s-lam(self, l, name, params, args, ann, doc, body, _check, blocky) block:
     last-visited-loc := l
     ensure-unique-ids(args)
     cases(Option) _check:
@@ -682,16 +669,13 @@ well-formed-visitor = A.default-iter-visitor.{
     check-underscore-name(fields, "a field name")
     lists.all(_.visit(self), fields)
   end,
-  method s-tuple-get(self, l, tup, index):
-    if (index < 0) block: 
-      wf-error(" Index too small  ", l)
-      false
-    else if (index > 1000):
-      wf-error(" Index over maximum allowed index  ", l)
-      false
+  method s-tuple-get(self, l, tup, index, index-loc):
+    if (index < 0) or (index > 1000) block: 
+      add-error(C.tuple-get-bad-index(l, tup, index, index-loc))
+      true
     else:
       true
-     end
+    end
   end,
   method s-check(self, l, name, body, keyword-check) block:
     last-visited-loc := l
@@ -984,11 +968,11 @@ top-level-visitor = A.default-iter-visitor.{
   method s-paren(_, l :: Loc, expr :: A.Expr):
     well-formed-visitor.s-paren(l, expr)
   end,
-  method s-lam(_, l :: Loc, params :: List<String>, args :: List<A.Bind>, ann :: A.Ann, doc :: String, body :: A.Expr, _check :: Option<A.Expr>, blocky):
-    well-formed-visitor.s-lam(l, params, args, ann, doc, body, _check, blocky)
+  method s-lam(_, l :: Loc, name :: String, params :: List<String>, args :: List<A.Bind>, ann :: A.Ann, doc :: String, body :: A.Expr, _check :: Option<A.Expr>, blocky):
+    well-formed-visitor.s-lam(l, name, params, args, ann, doc, body, _check, blocky)
   end,
-  method s-method(_, l :: Loc, params :: List<A.Name>, args :: List<A.Bind>, ann :: A.Ann, doc :: String, body :: A.Expr, _check :: Option<A.Expr>, blocky):
-    well-formed-visitor.s-method(l, params, args, ann, doc, body, _check, blocky)
+  method s-method(_, l :: Loc, name :: String, params :: List<A.Name>, args :: List<A.Bind>, ann :: A.Ann, doc :: String, body :: A.Expr, _check :: Option<A.Expr>, blocky):
+    well-formed-visitor.s-method(l, name, params, args, ann, doc, body, _check, blocky)
   end,
   method s-extend(_, l :: Loc, supe :: A.Expr, fields :: List<A.Member>):
     well-formed-visitor.s-extend(l, supe, fields)
@@ -996,8 +980,8 @@ top-level-visitor = A.default-iter-visitor.{
   method s-update(_, l :: Loc, supe :: A.Expr, fields :: List<A.Member>):
     well-formed-visitor.s-update(l, supe, fields)
   end,
-  method s-tuple-get(_, l :: Loc, tup, index):
-    well-formed-visitor.s-tuple-get(l, tup, index)
+  method s-tuple-get(_, l :: Loc, tup, index, index-loc):
+    well-formed-visitor.s-tuple-get(l, tup, index, index-loc)
   end,
   method s-obj(_, l :: Loc, fields :: List<A.Member>):
     well-formed-visitor.s-obj(l, fields)

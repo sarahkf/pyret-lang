@@ -353,6 +353,8 @@ fun _checking(e :: Expr, expect-type :: Type, top-level :: Boolean, context :: C
                 end)
               end)
             end)
+        | s-template(l) =>
+          raise("checking s-template not implemented yet")
         | s-type-let-expr(l, binds, body, blocky) =>
           handle-type-let-binds(binds, context).typing-bind(lam(_, shadow context):
             checking(body, expect-type, true, context)
@@ -469,14 +471,42 @@ fun _checking(e :: Expr, expect-type :: Type, top-level :: Boolean, context :: C
           raise("checking for s-check-expr not implemented")
         | s-paren(l, expr) =>
           raise("s-paren should have already been desugared")
-        | s-lam(l, params, args, ann, doc, body, _check, b) =>
-          check-fun(l, body, params, args, ann, expect-type, A.s-lam(l, params, _, _, doc, _, _check, b), context)
-        | s-method(l, params, args, ann, doc, body, _check, b) =>
+        | s-lam(l, name, params, args, ann, doc, body, _check, b) =>
+          check-fun(l, body, params, args, ann, expect-type, A.s-lam(l, name, params, _, _, doc, _, _check, b), context)
+        | s-method(l, name, params, args, ann, doc, body, _check, b) =>
           raise("checking for s-method not implemented")
         | s-extend(l, supe, fields) =>
           raise("checking for s-extend not implemented")
         | s-update(l, obj, fields) =>
           check-synthesis(e, expect-type, top-level, context)
+        | s-tuple(l, elts) =>
+          cases(Type) expect-type:
+            | t-tuple(t-elts, t-l) =>
+              result = fold2-strict(lam(acc, elt, elt-type):
+                   acc.bind(lam(exprs, shadow context):
+                      checking(elt, elt-type, false, context)
+                     .fold-bind(lam(new-elt, _, shadow context):
+                      fold-result(link(new-elt, exprs), context)
+                      end)
+                   end)
+               end, fold-result(empty, context), elts.reverse(), t-elts.reverse())
+
+              cases(Option<FoldResult<List<Expr>>>) result:
+                | none =>
+                   #todo: add better error
+                   typing-error([list: C.incorrect-type("a tuple type with length " + tostring(elts.length()), l, tostring(expect-type), expect-type.l)])
+                | some(folded) =>
+                   folded.typing-bind(lam(exprs, shadow context):
+                   typing-result(A.s-tuple(l, exprs), expect-type, context)  
+                  end)
+              end
+            | else => 
+              typing-error([list: C.incorrect-type(tostring(expect-type), expect-type.l, "a tuple type", l)])
+            end
+        | s-tuple-get(l, tup, index, index-loc) =>
+          raise("checking for s-tuple-get not yet implemented")
+        | s-tuple-let(l, names, tup) =>
+          raise("checking for s-tuple-let not yet implemented")
         | s-obj(l, fields) =>
           cases(Type) expect-type:
             | t-record(t-fields, t-l) =>
@@ -504,30 +534,6 @@ fun _checking(e :: Expr, expect-type :: Type, top-level :: Boolean, context :: C
             | else =>
               typing-error([list: C.incorrect-type-expression(tostring(expect-type), expect-type.l, "an object type", l, e)])
           end
-        | s-tuple(l, elts) =>
-          cases(Type) expect-type:
-            | t-tuple(t-elts, t-l) =>
-              result = fold2-strict(lam(acc, elt, elt-type):
-                   acc.bind(lam(exprs, shadow context):
-                      checking(elt, elt-type, false, context)
-                     .fold-bind(lam(new-elt, _, shadow context):
-                      fold-result(link(new-elt, exprs), context)
-                      end)
-                   end)
-               end, fold-result(empty, context), elts.reverse(), t-elts.reverse())
-
-              cases(Option<FoldResult<List<Expr>>>) result:
-                | none =>
-                   #todo: add better error
-                   typing-error([list: C.incorrect-type("a tuple type with length " + tostring(elts.length()), l, tostring(expect-type), expect-type.l)])
-                | some(folded) =>
-                   folded.typing-bind(lam(exprs, shadow context):
-                   typing-result(A.s-tuple(l, exprs), expect-type, context)  
-                  end)
-              end
-            | else =>
-              typing-error([list: C.incorrect-type(tostring(expect-type), expect-type.l, "a tuple type", l)])
-            end
         | s-array(l, values) =>
           wrapped = cases(Type) expect-type:
             | t-app(rarray, args, tl) =>
@@ -613,6 +619,8 @@ fun _synthesis(e :: Expr, top-level :: Boolean, context :: Context) -> TypingRes
       synthesis(answer, false, context)
         .map-expr(A.s-module(l, _, defined-values, defined-types, provided-values, provided-types, checks))
         .map-type(_.set-loc(l))
+    | s-template(l) =>
+      raise("synthesis for s-template not implemented yet")
     | s-type-let-expr(l, binds, body, b) =>
       handle-type-let-binds(binds, context).typing-bind(lam(_, shadow context):
         synthesis(body, false, context)
@@ -735,41 +743,26 @@ fun _synthesis(e :: Expr, top-level :: Boolean, context :: Context) -> TypingRes
       raise("synthesis for s-check-expr not implemented")
     | s-paren(l, expr) =>
       raise("s-paren should have already been desugared")
-    | s-lam(l, params, args, ann, doc, body, _check, b) =>
-      synthesis-fun(l, body, params, args, ann, A.s-lam(l, params, _, _, doc, _, _check, b), top-level, context)
-    | s-method(l, params, args, ann, doc, body, _check, b) =>
+    | s-lam(l, name, params, args, ann, doc, body, _check, b) =>
+      synthesis-fun(l, body, params, args, ann, A.s-lam(l, name, params, _, _, doc, _, _check, b), top-level, context)
+    | s-method(l, name, params, args, ann, doc, body, _check, b) =>
       raise("synthesis for s-method not implemented")
     | s-extend(l, supe, fields) =>
       raise("synthesis for s-extend not implemented")
     | s-update(l, obj, fields) =>
       synthesis(obj, top-level, context).bind(synthesis-update(l, _, _, fields, _))
-    | s-obj(l, fields) =>
-      map-fold-result(collect-member(_, false, _), fields, context).typing-bind(lam(field-types, shadow context):
-        initial-obj-type = t-record(field-types, l)
-        fields-and-types = map2(lam(field, field-type):
-          pair(field, field-type)
-        end, fields, field-types)
-        fold-new-field-types = map-fold-result(lam(field-and-type, shadow context):
-          to-type-member(field-and-type.left, field-and-type.right, initial-obj-type, false, context)
-        end, fields-and-types, context)
-
-        fold-new-field-types.typing-bind(lam(new-field-types, shadow context):
-          typing-result(A.s-obj(l, fields), t-record(new-field-types, l), context)
-        end)
-      end)
     | s-tuple(l, elts) =>
-     result = map-fold-result(lam(elt, shadow context):
+      result = map-fold-result(lam(elt, shadow context):
         synthesis(elt, false, context)
-            .fold-bind(lam(_, elt-type, shadow context):
-              fold-result(elt-type, context)
-            end) 
+          .fold-bind(lam(_, elt-type, shadow context):
+            fold-result(elt-type, context)
+          end) 
       end, elts, context)
       result.typing-bind(lam(typs :: List<Type>, shadow context):
         typing-result(A.s-tuple(l, elts), t-tuple(typs, l), context)
-        end)
-   | s-tuple-get(l, tup, index) =>
-      raise("synthesis for s-tuple-let not yet implemented") 
-     #|
+      end)
+
+      #|
       result = fold2-strict(lam(acc, arg, arg-type):
         acc.bind(lam(exprs, shadow context):
           checking(arg, arg-type, false, context)
@@ -789,6 +782,24 @@ fun _synthesis(e :: Expr, top-level :: Boolean, context :: Context) -> TypingRes
       end 
 
       typing-result(A.s-tuple(l, elts), t-tuple([list: t-number(l), t-string(l)], l), context) |#
+    | s-tuple-get(l, tup, index, index-loc) =>
+      raise("synthesis for s-tuple-get not yet implemented")
+    | s-tuple-let(l, names, tup) =>
+      raise("synthesis for s-tuple-let not yet implemented")
+    | s-obj(l, fields) =>
+      map-fold-result(collect-member(_, false, _), fields, context).typing-bind(lam(field-types, shadow context):
+        initial-obj-type = t-record(field-types, l)
+        fields-and-types = map2(lam(field, field-type):
+          pair(field, field-type)
+        end, fields, field-types)
+        fold-new-field-types = map-fold-result(lam(field-and-type, shadow context):
+          to-type-member(field-and-type.left, field-and-type.right, initial-obj-type, false, context)
+        end, fields-and-types, context)
+
+        fold-new-field-types.typing-bind(lam(new-field-types, shadow context):
+          typing-result(A.s-obj(l, fields), t-record(new-field-types, l), context)
+        end)
+      end)
      | s-array(l, values) =>
       fun process(value :: A.Expr, ctxt :: Context) -> FoldResult<Pair<A.Expr, Type>>:
         synthesis(value, false, ctxt).fold-bind(lam(expr, typ, shadow context):
@@ -1626,7 +1637,7 @@ fun collect-letrec-bindings(binds :: List<A.LetrecBind>, top-level :: Boolean, c
       initial-type = collected-bindings.get-value(binding.b.id.key())
       if TS.is-t-existential(initial-type):
         cases(Expr) binding.value:
-          | s-lam(lam-l, lam-params, lam-args, lam-ann, _, _, _, _) =>
+          | s-lam(lam-l, _, lam-params, lam-args, lam-ann, _, _, _, _) =>
             collect-bindings(lam-args, context).bind(lam(arg-coll, _):
               lam-to-type(arg-coll, lam-l, lam-params, lam-args, lam-ann, top-level, context).bind(lam(lam-type, _):
                 fold-result(collected-bindings.set(binding.b.id.key(), lam-type), context)
@@ -1784,13 +1795,13 @@ fun to-type-member(member :: A.Member, type-member :: TypeMember, self-type :: T
   cases(A.Member) member:
     | s-data-field(l, name, value) =>
       cases(Expr) value:
-        | s-method(m-l, params, args, ann, doc, body, _check, b) =>
+        | s-method(m-l, m-name, params, args, ann, doc, body, _check, b) =>
           new-type = add-self-type(type-member.typ)
-          check-fun(m-l, body, params, args, ann, new-type, A.s-method(m-l, params, _, _, doc, _, _check, b), context)
+          check-fun(m-l, body, params, args, ann, new-type, A.s-method(m-l, m-name, params, _, _, doc, _, _check, b), context)
             .fold-bind(lam(_, out-type, shadow context):
               fold-result(t-member(name, remove-self-type(context.apply(out-type))), context)
             end)
-        | s-lam(l-l, params, args, ann, doc, body, _check, b) =>
+        | s-lam(l-l, _, params, args, ann, doc, body, _check, b) =>
           if type-check-functions:
             # TODO(MATT): false or true for top-level?
             checking(value, type-member.typ, false, context)
@@ -1807,7 +1818,7 @@ fun to-type-member(member :: A.Member, type-member :: TypeMember, self-type :: T
       raise("Mutable fields not handled yet")
     | s-method-field(m-l, name, params, args, ann, doc, body, _check, b) =>
       new-type = add-self-type(type-member.typ)
-      check-fun(m-l, body, params, args, ann, new-type, A.s-method(m-l, params, _, _, doc, _, _check, b), context)
+      check-fun(m-l, body, params, args, ann, new-type, A.s-method(m-l, name, params, _, _, doc, _, _check, b), context)
         .fold-bind(lam(_, out-type, shadow context):
           fold-result(t-member(name, remove-self-type(context.apply(out-type))), context)
         end)
@@ -1820,7 +1831,7 @@ fun collect-member(member :: A.Member, collect-functions :: Boolean, context :: 
   cases(A.Member) member:
     | s-data-field(l, name, value) =>
       folded-field-type = cases(Expr) value:
-        | s-method(m-l, params, args, ann, _, _, _, _) =>
+        | s-method(m-l, _, params, args, ann, _, _, _, _) =>
           cases(List<A.Bind>) args:
             | empty =>
               fold-errors([list: C.method-missing-self(value)])
@@ -1829,7 +1840,7 @@ fun collect-member(member :: A.Member, collect-functions :: Boolean, context :: 
                 lam-to-type(bindings, m-l, params, args.rest, ann, not(collect-functions), context)
               end)
           end
-        | s-lam(l-l, params, args, ann, _, _, _, _) =>
+        | s-lam(l-l, _, params, args, ann, _, _, _, _) =>
           if collect-functions:
             collect-bindings(args, context).bind(lam(bindings, shadow context):
               lam-to-type(bindings, l-l, params, args.rest, ann, false, context)

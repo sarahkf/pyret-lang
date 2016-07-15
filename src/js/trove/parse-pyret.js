@@ -795,7 +795,7 @@
         //changes here
         'tuple-get': function(node) {
           return RUNTIME.getField(ast, 's-tuple-get')
-              .app(pos(node.pos), tr(node.kids[0]), number(node.kids[3]))
+              .app(pos(node.pos), tr(node.kids[0]), number(node.kids[3]), pos(node.kids[3].pos))
         },
         'obj-expr': function(node) {
           if (node.kids.length === 2) {
@@ -912,7 +912,7 @@
           var isBlock = (node.kids[2].name === "BLOCK");
           var header = tr(node.kids[1]);
           return RUNTIME.getField(ast, 's-lam')
-            .app(pos(node.pos), header.tyParams, header.args, header.returnAnn,
+            .app(pos(node.pos), RUNTIME.makeString(""), header.tyParams, header.args, header.returnAnn,
                  tr(node.kids[3]), tr(node.kids[4]), tr(node.kids[5]), isBlock);
         },
         'method-expr': function(node) {
@@ -920,7 +920,7 @@
           var isBlock = (node.kids[2].name === "BLOCK");
           var header = tr(node.kids[1]);
           return RUNTIME.getField(ast, 's-method')
-            .app(pos(node.pos), header.tyParams, header.args, header.returnAnn,
+            .app(pos(node.pos), RUNTIME.makeString(""), header.tyParams, header.args, header.returnAnn,
                  tr(node.kids[3]), tr(node.kids[4]), tr(node.kids[5]), isBlock);
         },
         'extend-expr': function(node) {
@@ -1153,7 +1153,7 @@
     return RUNTIME.makeObject({
       'provide-plus-types': RUNTIME.makeObject({
         'values': RUNTIME.makeObject({
-          'surface-parse': RUNTIME.makeFunction(parsePyret)
+          'surface-parse': RUNTIME.makeFunction(parsePyret, "surface-parse")
         }),
         'types': {}
       }),

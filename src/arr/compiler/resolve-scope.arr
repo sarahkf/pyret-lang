@@ -190,14 +190,14 @@ fun desugar-scope-block(stmts :: List<A.Expr>, binding-group :: BindingGroup) ->
           bind-check = A.s-let-bind(l, A.s-bind(l, false, A.s-underscore(l), A.a-blank), check-expr)
           get-binds =
             for map_n(n from 0, element from binds):
-              A.s-let-bind(l, element, A.s-tuple-get(l, A.s-id(l, namet), n))
+              A.s-let-bind(l, element, A.s-tuple-get(l, A.s-id(l, namet), n, A.dummy-loc))
             end
            add-let-binds(binding-group, link(tup-name, link(bind-check, get-binds)).reverse(), rest-stmts) 
          #| cases(List) binds:
           | empty => desugar-scope-block(rest-stmts, binding-group)
           | link(first, rest) =>
           new-rst-stmts = link(A.s-tuple-let(l, rest, tup), rest-stmts)
-          new-let-exp =  A.s-tuple-get(l, tup, (binds.length() - 1))
+          new-let-exp =  A.s-tuple-get(l, tup, (binds.length() - 1), A.dummy-loc)
           new-block-list = [list: add-let-bind(binding-group, A.s-let-bind(l, first, new-let-exp), new-rst-stmts)]
           A.s-block(l, new-block-list) 
           end |#
@@ -206,7 +206,7 @@ fun desugar-scope-block(stmts :: List<A.Expr>, binding-group :: BindingGroup) ->
           add-letrec-bind(binding-group, A.s-letrec-bind(
               l,
               A.s-bind(l, false, A.s-name(l, name), A.a-blank),
-              A.s-lam(l, params, args, ann, doc, body, _check, blocky)
+              A.s-lam(l, name, params, args, ann, doc, body, _check, blocky)
             ), rest-stmts)
         | s-data-expr(l, name, namet, params, mixins, variants, shared, _check) =>
           fun b(loc, id :: String): A.s-bind(loc, false, A.s-name(loc, id), A.a-blank) end
@@ -257,7 +257,7 @@ where:
     dsb(p(str).stmts).visit(A.dummy-loc-visitor)
   end
   n = none
-  thunk = lam(e): A.s-lam(d, [list: ], [list: ], A.a-blank, "", bk(e), n, false) end
+  thunk = lam(e): A.s-lam(d, "", [list: ], [list: ], A.a-blank, "", bk(e), n, false) end
 
 
   compare1 = A.s-let-expr(d, [list: A.s-let-bind(d, b("x"), A.s-num(d, 15)),
@@ -435,19 +435,23 @@ data TypeBinding:
   | module-type-bind(loc, atom :: A.Name, mod :: A.ImportType, ann :: Option<A.Ann>)
 end
 
-fun scope-env-from-env(initial :: C.CompileEnvironment):
-  for fold(acc from SD.make-string-dict(), name from initial.globals.values.keys-list()):
-    acc.set(name, global-bind(S.builtin("pyret-builtin"), names.s-global(name), none))
+fun scope-env-from-env(initial :: C.CompileEnvironment) block:
+  acc = SD.make-mutable-string-dict()
+  for each(name from initial.globals.values.keys-list()):
+    acc.set-now(name, global-bind(S.builtin("pyret-builtin"), names.s-global(name), none))
   end
+  acc.freeze()
 where:
   scope-env-from-env(C.compile-env(C.globals([string-dict: "x", T.t-top(A.dummy-loc)], mtd), mtd))
     .get-value("x") is global-bind(S.builtin("pyret-builtin"), names.s-global("x"), none)
 end
 
-fun type-env-from-env(initial :: C.CompileEnvironment):
-  for fold(acc from SD.make-string-dict(), name from initial.globals.types.keys-list()):
-    acc.set(name, global-type-bind(S.builtin("pyret-builtin-type"), names.s-type-global(name), none))
+fun type-env-from-env(initial :: C.CompileEnvironment) block:
+  acc = SD.make-mutable-string-dict()
+  for each(name from initial.globals.types.keys-list()):
+    acc.set-now(name, global-type-bind(S.builtin("pyret-builtin-type"), names.s-type-global(name), none))
   end
+  acc.freeze()
 end
 
 
@@ -490,7 +494,8 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
       # it or do any more work.
       | s-atom(_, _) =>
         binding = make-binding(A.dummy-loc, name)
-        env.set(name.key(), binding)
+        # THIS LINE DOES NOTHING??
+        # env.set(name.key(), binding)
         bindings.set-now(name.key(), binding)
         { atom: name, env: env }
       | else => raise("Unexpected atom type: " + torepr(name))
@@ -639,7 +644,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
             end
             {te; tn} = for fold(nv-t from {atom-env-t.env; empty}, t from tnames):
               {te; tn} = nv-t
-              t-atom-env = make-atom-for(t, false, te, bindings, module-type-bind(_, _, file, none))
+              t-atom-env = make-atom-for(t, false, te, type-bindings, module-type-bind(_, _, file, none))
               { t-atom-env.env; link(t-atom-env.atom, tn) }
             end
             new-header = A.s-import-complete(l2,
@@ -780,7 +785,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
                  visited-ann = element.ann.visit(self.{env: new-env})
                  new-atom-env = make-atom-for(element.id, element.shadows, new-env, bindings, let-bind(_,_, visited-ann, none))
                  #visited-expr = expr.visit(self.{env: new-env})
-                 t-let-bind = A.s-let-bind(l3, A.s-bind(l3, element.shadows, new-atom-env.atom, visited-ann), A.s-tuple-get(l3, A.s-id(l3, namet), n))
+                 t-let-bind = A.s-let-bind(l3, A.s-bind(l3, element.shadows, new-atom-env.atom, visited-ann), A.s-tuple-get(l3, A.s-id(l3, namet), n, l3))
                  update-binding-expr(new-atom-env.atom, some(t-let-bind))
                  {n + 1; new-atom-env.env; link(t-let-bind, new-lets); link(new-atom-env.atom, new-atom)}
               end
@@ -832,7 +837,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
                {num; new-atom-env; new-let-binds} = 
                 for fold(acc2 from {0; env; [list: ]}, element from fields):
                   {n; in-atom-env; in-lets} = acc2
-                  t-let-bind = A.s-let-bind(l, element, A.s-tuple-get(l, A.s-id(l, namet), n))
+                  t-let-bind = A.s-let-bind(l1, element, A.s-tuple-get(l1, A.s-id(l, namet), n, l1))
                   {n + 1; in-atom-env; link(t-let-bind, in-lets)}
                 end
                 check-expr = A.s-prim-app(l1, "checkTupleBind", [list: A.s-id(l, namet), A.s-num(l1, fields.length()), A.s-srcloc(l1, l1)])
@@ -877,7 +882,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
            | s-tuple-bind(l3, fields) =>
              {n; new-lets} = for fold(acc4 from {0; [list: ]}, element from fields):
              {n; new-lets} = acc4
-             t-let-bind = A.s-let-bind(l3, element, A.s-tuple-get(l3, A.s-id(l3, at ), n))
+             t-let-bind = A.s-let-bind(l3, element, A.s-tuple-get(l3, A.s-id(l3, at ), n, l3))
              {n + 1; link(t-let-bind, new-lets)}
              end
              check-expr = A.s-prim-app(l3, "checkTupleBind", [list: A.s-id(l3, at), A.s-num(l3, fields.length()), A.s-srcloc(l3, l3)])
@@ -906,14 +911,14 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
       datatypes.set-now(namet.key(), result)
       result
     end,
-    method s-lam(self, l, params, args, ann, doc, body, _check, blocky) block:
-    {ty-env; ty-atoms} = for fold(acc from {self.type-env; empty }, param from params):
-        {env; atoms} = acc        
+    method s-lam(self, l, name, params, args, ann, doc, body, _check, blocky) block:
+      {ty-env; ty-atoms} = for fold(acc from {self.type-env; empty }, param from params):
+        {env; atoms} = acc
         atom-env = make-atom-for(param, false, env, type-bindings, type-var-bind(_, _, none))
         { atom-env.env; link(atom-env.atom, atoms) }
       end
       with-params = self.{type-env: ty-env}
-      {env; atoms} = for fold(acc from { with-params.env; empty }, a from args):
+      {env; atoms} = for fold(acc from { with-params.env; empty }, a from args) block:
         {env; atoms} = acc
         cases(A.Bind) a:
          | s-bind(_, _, _, _) =>
@@ -937,7 +942,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
         | s-tuple-bind(l2, fields) => 
           {n; new-let-binds} = for fold(acc4 from {0; [list: ]}, element from fields):
             {n; new-let-binds} = acc4
-            t-let-bind = A.s-let-bind(l2, element, A.s-tuple-get(l2, A.s-id(l2, at), n))
+            t-let-bind = A.s-let-bind(l2, element, A.s-tuple-get(l2, A.s-id(l2, at), n, l2))
             {n + 1; link(t-let-bind, new-let-binds)}
             end
           check-expr = A.s-prim-app(l2, "checkTupleBind", [list: A.s-id(l2, at), A.s-num(l2, fields.length()), A.s-srcloc(l2, l2)])
@@ -953,9 +958,9 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
       # Restore the errors to what they were. (_check has already been desugared,
       # so the programmer will see those errors, not the ones from here.)
       name-errors := saved-name-errors
-      A.s-lam(l, ty-atoms.reverse(), new-args, ann.visit(with-params), doc, new-body, new-check, blocky)
+      A.s-lam(l, name, ty-atoms.reverse(), new-args, ann.visit(with-params), doc, new-body, new-check, blocky)
     end,
-    method s-method(self, l, params, args, ann, doc, body, _check, blocky):
+    method s-method(self, l, name, params, args, ann, doc, body, _check, blocky):
       {ty-env; ty-atoms} = for fold(acc from {self.type-env; empty }, param from params):
         {env; atoms} = acc
         atom-env = make-atom-for(param, false, env, type-bindings, type-var-bind(_, _, none))
@@ -986,7 +991,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
          | s-tuple-bind(l2, fields) =>
            {n; new-lets} = for fold(acc3 from {0; [list: ]}, element from fields):
              {n; new-lets} = acc3
-             t-let-bind = A.s-let-bind(l2, element, A.s-tuple-get(l2, A.s-id(l2, at), n))
+             t-let-bind = A.s-let-bind(l2, element, A.s-tuple-get(l2, A.s-id(l2, at), n, l2))
              {n + 1; link(t-let-bind, new-lets)}
             end
             check-expr = A.s-prim-app(l2, "checkTupleBind", [list: A.s-id(l2, at), A.s-num(l2, fields.length()), A.s-srcloc(l2, l2)])
@@ -996,7 +1001,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
       end
       new-body = updated-body.visit(with-params.{env: env})
       new-check = with-params.option(_check)
-      A.s-method(l, ty-atoms.reverse(), new-args, ann.visit(with-params), doc, new-body, new-check, blocky)
+      A.s-method(l, name, ty-atoms.reverse(), new-args, ann.visit(with-params), doc, new-body, new-check, blocky)
     end,
     method s-method-field(self, l, name, params, args, ann, doc, body, _check, blocky):
       {ty-env; ty-atoms} = for fold(acc from {self.type-env; empty }, param from params):
@@ -1029,7 +1034,7 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
          | s-tuple-bind(l2, fields) =>
            {n; new-lets} = for fold(acc3 from {0; [list: ]}, element from fields):
              {n; new-lets} = acc3
-             t-let-bind = A.s-let-bind(l2, element, A.s-tuple-get(l2, A.s-id(l2, at), n))
+             t-let-bind = A.s-let-bind(l2, element, A.s-tuple-get(l2, A.s-id(l2, at), n, l2))
              {n + 1; link(t-let-bind, new-lets)}
            end
            check-expr = A.s-prim-app(l2, "checkTupleBind", [list: A.s-id(l2, at), A.s-num(l2, fields.length()), A.s-srcloc(l2, l2)])
@@ -1122,3 +1127,97 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
   C.resolved(p.visit(names-visitor), name-errors, bindings, type-bindings, datatypes)
 end
 
+fun check-unbound-ids-bad-assignments(ast :: A.Program, resolved :: C.NameResolution, initial-env :: C.CompileEnvironment) block:
+  var errors = [list: ] # THE MUTABLE LIST OF ERRORS
+  bindings = resolved.bindings
+  type-bindings = resolved.type-bindings
+  fun add-error(err): errors := err ^ link(_, errors) end
+  fun handle-id(id, loc):
+    if A.is-s-underscore(id) block:
+      add-error(C.underscore-as-expr(loc))
+      false
+    else if A.is-s-global(id) and initial-env.globals.values.has-key(id.toname()):
+      false
+    else if bindings.has-key-now(id.key()):
+      false
+    else:
+      # print-error("Cannot find binding for " + id.key() + " at " + loc.format(true) + " in \n")
+      # print-error("Bindings: " + torepr(bindings.keys-list-now()) + "\n")
+      # print-error("Global values: " + torepr(initial-env.globals.values.keys-list()) + "\n")
+      true
+    end
+  end
+  ast.visit(A.default-iter-visitor.{
+      method s-id(self, loc, id) block:
+        when handle-id(id, loc):
+          add-error(C.unbound-id(A.s-id(loc, id)))
+        end
+        true
+      end,
+      method s-id-var(self, loc, id) block:
+        when handle-id(id, loc):
+          add-error(C.unbound-id(A.s-id-var(loc, id)))
+        end
+        true
+      end,
+      method s-id-letrec(self, loc, id, safe) block:
+        when handle-id(id, loc):
+          add-error(C.unbound-id(A.s-id-letrec(loc, id, safe)))
+        end
+        true
+      end,
+      method s-assign(self, loc, id, value) block:
+        id-k = id.key()
+        if bindings.has-key-now(id-k):
+          binding = bindings.get-value-now(id-k)
+          when not(is-var-bind(binding)):
+            add-error(C.bad-assignment(A.s-assign(loc, id, value), binding.loc))
+          end
+        else:
+          add-error(C.unbound-var(id.toname(), loc))
+        end
+        value.visit(self)
+      end,
+      method a-name(self, loc, id) block:
+        if A.is-s-underscore(id) block:
+          add-error(C.underscore-as-ann(id.l))
+        else if A.is-s-type-global(id) and initial-env.globals.types.has-key(id.toname()):
+          nothing
+        else if type-bindings.has-key-now(id.key()):
+          nothing
+        else:
+          # print-error("Cannot find " + id.key() + " at " + loc.format(true) + " in:\n")
+          # print-error("Type-bindings: " + torepr(type-bindings.keys-list-now()) + "\n")
+          # print-error("Global types: " + torepr(initial-env.globals.types.keys-list()) + "\n")
+          add-error(C.unbound-type-id(A.a-name(loc, id)))
+          nothing
+        end
+        true
+      end,
+      method a-dot(self, loc, name, field) block:
+        if A.is-s-underscore(name) block:
+          add-error(C.underscore-as-ann(name.l))
+        else if A.is-s-type-global(name) and initial-env.globals.types.has-key(name.toname()):
+          # need to figure out how to read through the imports here, I think
+          nothing
+        else if type-bindings.has-key-now(name.key()):
+          nothing
+        else:
+          # need to figure out how to read through the imports here, I think
+          # print-error("Cannot find " + name.key() + " at " + loc.format(true) + " in:\n")
+          # print-error("Type-bindings: " + torepr(type-bindings.keys-list-now()) + "\n")
+          # print-error("Global types: " + torepr(initial-env.globals.types.keys-list()) + "\n")
+          add-error(C.unbound-type-id(A.a-name(loc, name)))
+          nothing
+        end
+        true
+      end
+    })
+  errors
+where:
+  p = PP.surface-parse(_, "test")
+  px = p("x")
+  resolved = C.resolved(px, empty, [SD.mutable-string-dict:], [SD.mutable-string-dict:], [SD.mutable-string-dict:])
+  unbound1 = check-unbound-ids-bad-assignments(px, resolved, C.standard-builtins)
+  unbound1.length() is 1
+end
