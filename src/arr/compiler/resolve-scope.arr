@@ -831,11 +831,12 @@ fun resolve-names(p :: A.Program, initial-env :: C.CompileEnvironment):
                new-fb = A.s-for-bind(l2, new-bind, visit-val)
                { atom-env.env; link(new-fb, fbs); new-body }
             | s-tuple-bind(l1, fields) =>
-               namet = names.make-atom("tup") 
+               namet = names.make-atom("tup")
+               atom-env = make-atom-for(namet, false, env, bindings, let-bind(_, _, A.a-blank, none))
                visit-val = val.visit(self)
                tup-bind = A.s-for-bind(l2, A.s-bind(l, false, namet, A.a-blank), visit-val)
                {num; new-atom-env; new-let-binds} = 
-                for fold(acc2 from {0; env; [list: ]}, element from fields):
+                for fold(acc2 from {0; atom-env.env; [list: ]}, element from fields):
                   {n; in-atom-env; in-lets} = acc2
                   t-let-bind = A.s-let-bind(l1, element, A.s-tuple-get(l1, A.s-id(l, namet), n, l1))
                   {n + 1; in-atom-env; link(t-let-bind, in-lets)}

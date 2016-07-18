@@ -124,7 +124,7 @@ check "tuple decunstruction":
     sum
   end
 
-  elts = [list: {"a"; 5}, {"b"; 6}, {"c"; 7}]
+  elts = [list: {"a"; 5;}, {"b"; 6}, {"c"; 7}]
 
   f(elts) is 18 
 
@@ -143,16 +143,25 @@ check "tuple decunstruction":
   end
 
   h({10; 12}, {1; 4; 5}) is 32
-  fun cases-test(tup):
-    answer = cases(tuples) tup:
-      | tuple1(w, {k;v;}) => w
-      | tuple2(two) => two
-    end
-    answer
+
+  fun h_order({k;v;}, {a;b;c;}) block:
+    v + a + c
   end
 
-  cases-test(tuple1("hi", {"hello"; "there"})) is "hi"
+  h_order({10; 12}, {1; 4; 5}) is 18
+  
+  fun cases-test(tup):
+    answer = cases(tuples) tup:
+      | tuple1(w, {k;v;q;}) => k + w + q + v
+      | tuple2(two) => two
+    end
+   answer
+  end
 
+  check:
+    cases-test(tuple1("little", {"hello"; "there"; "puppy";})) is "hellolittlepuppythere"
+  end
+  
   point-methods = {
     method dist(self, {x;y;}):
       ysquared = num-expt(y - self.pt.{1}, 2)
