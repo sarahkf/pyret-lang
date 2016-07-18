@@ -163,29 +163,52 @@ check "tuple decunstruction":
   end
   
   point-methods = {
-    method dist(self, {x;y;}):
-      ysquared = num-expt(y - self.pt.{1}, 2)
-      xsquared = num-expt(x - self.pt.{0}, 2)
-      num-sqrt(ysquared + xsquared)
+  method dist(self, {x;y;}):
+    ysquared = num-expt(y - self.pt.{1}, 2)
+    xsquared = num-expt(x - self.pt.{0}, 2)
+    num-sqrt(ysquared + xsquared)
+  end,
+  
+  method order(self, word1, {one; two; three;}, word2):
+    word2 + two + one + three + word1 + num-to-string(self.pt.{0}) + num-to-string(self.pt.{1})
+  end
+}
+
+fun make-point(x, y):
+  point-methods.{ pt: {x;y} }
+end
+
+  p1 = make-point(1,2)
+  p2 = {1;5}
+
+  p1.dist(p2) is 3
+  
+  p1.order("friend", {"is"; "what"; "up"}, "hi") is "hiwhatisupfriend12"
+
+  answer = let k = "pyret" :
+  let {x;y;z} = {"1";"2";"3"}:
+    let {a;b} = {"hi"; "hello"}:
+      let w = "friend":
+        x + a + k + y + b + w + z
+      end
     end
-  }
-
-  fun make-point(x, y):
-    point-methods.{ pt: {x;y} }
   end
+end
 
-  check:
-    p1 = make-point(1,2)
-    p2 = {1;5}
 
-    p1.dist(p2) is 3
+  answer is "1hipyret2hellofriend3"
+fun unzip(l :: List) -> {List; List}:
+
+  cases(List) l:
+    | empty => {empty; empty}
+    | link({v1; v2}, r) =>
+      {rest1; rest2} = unzip(r)
+      {link(v1, rest1); link(v2, rest2)}
   end
+end
 
-  answer = let {x;y;} = {1;2}:
-    x + y
-  end
+  unzip([list: {1; 2}, {3; 4}]) is {[list: 1, 3]; [list: 2, 4]}
 
-  answer is 3
 end
 
 
