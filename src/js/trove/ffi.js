@@ -419,6 +419,10 @@
       runtime.checkPyretVal(value);
       return contract("record-fields-fail")(value, failures);
     }
+  
+    function makeTupleAnnsFail(value, failures) {
+      return contract("tuple-anns-fail")(value, failures);
+    }
 
     function makeTupleAnnsFail(value, failures) {
       return contract("tuple-anns-fail")(value, failures);
@@ -536,8 +540,11 @@
       throwParseErrorBadOper: throwParseErrorBadOper,
 
       makeRecordFieldsFail: makeRecordFieldsFail,
+      makeTupleAnnsFail: makeTupleAnnsFail,
       makeFieldFailure: makeFieldFailure,
+      makeAnnFailure: makeAnnFailure,
       makeMissingField: makeMissingField,
+      makeTupleLengthMismatch: makeTupleLengthMismatch,
       makeTypeMismatch: makeTypeMismatch,
       makeTupleAnnsFail: makeTupleAnnsFail,
       makeTupleLengthMismatch: makeTupleLengthMismatch,
